@@ -21,5 +21,32 @@ object GithubPlugin extends AutoPlugin {
   }
 
 
+  import autoImport._
+
+
+  override lazy val projectSettings = Seq(
+
+    githubCreateProject := {
+
+      val create = dispatch.url("https://api.github.com/user/repos")
+        .addHeader("Authorization",s"token ${githubToken.value}")
+        .setContentType("application/json", "UTF-8")
+        .POST << s"""{ "name":"${name.value}" }"""
+
+      val created = Http(create OK as.String)
+
+      val gitPush = for {
+        response <- created
+      } yield {
+        val sshUrl = response.parseJson.asJsObject.getFields("ssh_url").head.convertTo[String]
+        s"git remote add github $sshUrl".!!
+        "git push -u github master".!!
+      }
+
+      println(Await.result(gitPush ,1.minute))
+    }
+
+  )
+
 
 }
